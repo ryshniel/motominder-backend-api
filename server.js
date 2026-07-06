@@ -16,7 +16,6 @@ const pool = new Pool({
 });
 
 // AUTOMATIC DATABASE UPDATER
-// This runs safely every time the server starts up directly on Render
 const autoUpdateDatabase = async () => {
     try {
         const queryText = `
@@ -62,7 +61,7 @@ app.post('/api/bookings', async (req, res) => {
 app.get('/api/bookings/:email', async (req, res) => {
     const userEmail = req.params.email;
     try {
-        const queryText = 'SELECT * VALUES WHERE user_email = $1 ORDER BY id DESC';
+        const queryText = 'SELECT * FROM bookings WHERE user_email = $1 ORDER BY id DESC';
         const result = await pool.query(queryText, [userEmail]);
         res.status(200).json({ success: true, data: result.rows });
     } catch (err) {
