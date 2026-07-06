@@ -15,6 +15,24 @@ const pool = new Pool({
     ssl: { rejectUnauthorized: false } // Required for secure cloud hosting connections
 });
 
+// AUTOMATIC DATABASE UPDATER
+// This runs safely every time the server starts up directly on Render
+const autoUpdateDatabase = async () => {
+    try {
+        const queryText = `
+            ALTER TABLE bookings 
+            ADD COLUMN IF NOT EXISTS service_type VARCHAR(100),
+            ADD COLUMN IF NOT EXISTS phone_number VARCHAR(20),
+            ADD COLUMN IF NOT EXISTS additional_notes TEXT;
+        `;
+        await pool.query(queryText);
+        console.log("🚀 DATABASE SUCCESS: Columns checked and updated automatically!");
+    } catch (err) {
+        console.error("❌ DATABASE ERROR on startup:", err.message);
+    }
+};
+autoUpdateDatabase();
+
 // Base Route
 app.get('/', (req, res) => {
     res.status(200).json({ message: "MotoMinder In-House Web Service is active!" });
@@ -22,13 +40,16 @@ app.get('/', (req, res) => {
 
 // Create a Booking (POST)
 app.post('/api/bookings', async (req, res) => {
-    const { user_email, workshop_name, booking_date, booking_time } = req.body;
-    if (!user_email || !workshop_name || !booking_date || !booking_time) {
+    const { user_email, workshop_name, booking_date, booking_time, service_type, phone_number, additional_notes } = req.body;
+    
+    if (!user_email || !workshop_name || !booking_date || !booking_time || !service_type || !phone_number) {
         return res.status(400).json({ success: false, error: "Missing required booking fields" });
     }
+    
     try {
-        const queryText = 'INSERT INTO bookings (user_email, workshop_name, booking_date, booking_time) VALUES ($1, $2, $3, $4) RETURNING *';
-        const values = [user_email, workshop_name, booking_date, booking_time];
+        const queryText = 'INSERT INTO bookings (user_email, workshop_name, booking_date, booking_time, service_type, phone_number, additional_notes) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *';
+        const values = [user_email, workshop_name, booking_date, booking_time, service_type, phone_number, additional_notes];
+        
         const result = await pool.query(queryText, values);
         res.status(201).json({ success: true, data: result.rows[0] });
     } catch (err) {
@@ -41,7 +62,7 @@ app.post('/api/bookings', async (req, res) => {
 app.get('/api/bookings/:email', async (req, res) => {
     const userEmail = req.params.email;
     try {
-        const queryText = 'SELECT * FROM bookings WHERE user_email = $1 ORDER BY id DESC';
+        const queryText = 'SELECT * VALUES WHERE user_email = $1 ORDER BY id DESC';
         const result = await pool.query(queryText, [userEmail]);
         res.status(200).json({ success: true, data: result.rows });
     } catch (err) {
